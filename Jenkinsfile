@@ -8,43 +8,69 @@ pipeline {
     stages {
         stage('Checkout SCM') {
             steps {
-                echo 'Menarik source code Laravel dari GitHub...'
+                echo 'Menarik kode dari GitHub...'
                 checkout scm
             }
         }
 
-        stage('Check Laravel Database Config') {
+        stage('Check Database Configuration') {
             steps {
-                echo 'Memeriksa konfigurasi koneksi database Laravel...'
-                // Memastikan file konfigurasi database Laravel terdeteksi di repo
-                sh 'ls -la config/database.php'
+                echo 'Mengecek ketersediaan konfigurasi database...'
+                // Mengecek keberadaan file konfigurasi database Laravel
+                script {
+                    if (isUnix()) {
+                        sh 'ls -la config/database.php'
+                    } else {
+                        bat 'dir config\\database.php'
+                    }
+                }
             }
         }
 
         stage('Docker Build Stage') {
             steps {
-                echo 'Membangun Docker Image untuk Laravel Blog...'
-                sh "docker build -t ${APP_IMAGE} ."
+                echo 'Membangun Docker Image...'
+                script {
+                    if (isUnix()) {
+                        sh "docker build -t ${APP_IMAGE} ."
+                    } else {
+                        bat "docker build -t ${APP_IMAGE} ."
+                    }
+                }
             }
         }
 
         stage('Docker Test Stage') {
             steps {
-                echo 'Menjalankan container Docker untuk pengujian...'
-                sh "docker run -d --name blog-laravel-container -p 8081:80 ${APP_IMAGE} || true"
-                sh "docker ps | grep blog-laravel-container || true"
+                echo 'Menjalankan container uji coba...'
+                script {
+                    if (isUnix()) {
+                        sh "docker run -d --name blog-test-container ${APP_IMAGE} || true"
+                        sh "docker ps"
+                    } else {
+                        bat "docker run -d --name blog-test-container %APP_IMAGE% || exit 0"
+                        bat "docker ps"
+                    }
+                }
             }
         }
     }
 
     post {
         always {
-            echo 'Membersihkan environment container...'
-            sh 'docker stop blog-laravel-container || true'
-            sh 'docker rm blog-laravel-container || true'
+            echo 'Membersihkan container uji coba...'
+            script {
+                if (isUnix()) {
+                    sh 'docker stop blog-test-container || true'
+                    sh 'docker rm blog-test-container || true'
+                } else {
+                    bat 'docker stop blog-test-container || exit 0'
+                    bat 'docker rm blog-test-container || exit 0'
+                }
+            }
         }
         success {
-            echo 'Pipeline Laravel berhasil dieksekusi!'
+            echo 'UYEY SUKSES!'
         }
     }
 }
